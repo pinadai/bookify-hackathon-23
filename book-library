@@ -1,0 +1,64 @@
+import numpy as np 
+import pandas as pd 
+from sklearn.cluster import KMeans
+from sklearn import neighbors
+from sklearn.model_selection import train_test_split
+from sklearn.preprocessing import MinMaxScaler
+
+
+books = pd.read_csv('books.csv', delimiter=',')
+books.isnull().sum()
+
+
+
+books2 = books.copy()
+
+
+
+
+books2.loc[ (books2['average_rating'] >= 0) & (books2['average_rating'] <= 1), 'rating_between'] = "between 0 and 1"
+books2.loc[ (books2['average_rating'] > 1) & (books2['average_rating'] <= 2), 'rating_between'] = "between 1 and 2"
+books2.loc[ (books2['average_rating'] > 2) & (books2['average_rating'] <= 3), 'rating_between'] = "between 2 and 3"
+books2.loc[ (books2['average_rating'] > 3) & (books2['average_rating'] <= 4), 'rating_between'] = "between 3 and 4"
+books2.loc[ (books2['average_rating'] > 4) & (books2['average_rating'] <= 5), 'rating_between'] = "between 4 and 5"
+
+
+rating_books = pd.get_dummies(books2['rating_between'])
+language_books = pd.get_dummies(books2['language_code'])
+
+
+features = pd.concat([rating_books, language_books, books2['average_rating'], books2['ratings_count']], axis=1)
+features
+
+
+min_max_scaler = MinMaxScaler()
+features_new = min_max_scaler.fit_transform(features)
+features_new
+
+
+
+model = neighbors.NearestNeighbors(n_neighbors=6, algorithm='ball_tree')
+model.fit(features_new)
+dist, idlist = model.kneighbors(features_new)
+
+
+
+def BookRecommender(book_name):
+    book_list_name = []
+    book_id = books2[books2['Title'] == book_name].index
+    book_id = book_id[0]
+    for new_id in idlist[book_id]:
+        book_list_name.append(books2.loc[new_id].Title)
+    return book_list_name 
+
+BookNames = BookRecommender("Charlotte's Web")
+
+for book in BookNames:
+  print(book) 
+
+
+
+top_ten = books[books['ratings_count'] > 1000000]
+top_ten.sort_values(by='average_rating', ascending=False)
+
+books1 = top_ten.sort_values(by='average_rating', ascending=False).head(10)
